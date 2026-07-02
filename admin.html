@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex,nofollow">
-<title>Review queue - Montauk The App</title>
+<title>Admin - Montauk The App</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -37,6 +37,17 @@
   .count{font-family:"Oswald",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.04em;
     text-transform:uppercase;color:var(--ink)}
   .msg{padding:40px 20px;text-align:center;color:var(--muted);font-size:15px;line-height:1.5}
+
+  /* tab bar */
+  .tabs{display:flex;border-bottom:1px solid var(--line);background:var(--surface);
+    position:sticky;top:0;z-index:10}
+  .tab{flex:1;appearance:none;border:0;background:none;cursor:pointer;font:inherit;
+    font-family:"Oswald",sans-serif;font-size:13px;font-weight:600;letter-spacing:0.04em;
+    text-transform:uppercase;color:var(--muted);padding:14px 6px 12px;border-bottom:2px solid transparent}
+  .tab .n{display:inline-block;min-width:20px;margin-left:5px;font-size:11px;font-weight:600;
+    padding:1px 6px;border-radius:999px;background:var(--line);color:var(--ink)}
+  .tab[aria-selected="true"]{color:var(--brand-red);border-bottom-color:var(--brand-red)}
+  .tab[aria-selected="true"] .n{background:var(--red-wash);color:var(--red-ink)}
 
   /* buttons */
   .btn{font:inherit;font-size:14px;font-weight:600;border-radius:999px;padding:9px 16px;
@@ -94,8 +105,9 @@
 <div class="wrap">
   <header>
     <div class="mark-sub">Montauk - The App</div>
-    <h1 class="h1">Review queue</h1>
+    <h1 class="h1">Admin</h1>
   </header>
+  <div id="tabbar"></div>
   <div id="app"><div class="msg">Loading...</div></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -165,6 +177,37 @@ function costClass(cost){
 }
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+const DOW_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]; // 0=Sun..6=Sat
+// "HH:MM:SS" or "HH:MM" -> "6:00 PM"
+function fmtTimeOfDayLabel(t){
+  if(!t) return "";
+  const [hh,mi] = t.split(":").map(Number);
+  const ap = hh < 12 ? "AM" : "PM";
+  let h12 = hh % 12; if(h12===0) h12 = 12;
+  return `${h12}:${String(mi).padStart(2,"0")} ${ap}`;
+}
+// "YYYY-MM-DD" -> "Jul 6" (plain calendar date, no timezone math)
+function fmtCalDate(dateStr){
+  if(!dateStr) return "";
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${MON[m-1]} ${d}`;
+}
+// local date -> "YYYY-MM-DD" (no timezone shift; uses the date's own y/m/d)
+function ymd(y,m,d){ return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+// today's calendar date in ET as {y,m,d}
+function todayET(){
+  const parts = {};
+  for(const p of new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",
+    day:"2-digit"}).formatToParts(new Date())) parts[p.type]=p.value;
+  return {y:+parts.year, m:+parts.month, d:+parts.day};
+}
+// start-of-today ET as an ISO instant, for the "Published" query lower bound
+function startOfTodayET_ISO(){
+  const {y,m,d} = todayET();
+  return etToISO(ymd(y,m,d), "00:00");
+}
+
 const app = document.getElementById("app");
 let TOAST_T;
 function toast(text){
@@ -205,39 +248,134 @@ function renderLogin(sent){
   };
 }
 
-/* ---------- queue ---------- */
-async function loadQueue(){
+/* ==========================================================================
+   Tab controller. Three views share the same feed area and card machinery.
+   Each tab knows how to load its rows and how to render its actions.
+   ========================================================================== */
+const ROWS = {};                 // event/rule id -> latest row, for edit prefill
+const COUNTS = {review:null, series:null, published:null};
+let ACTIVE_TAB = "review";
+const TAB_LABEL = {review:"Review", series:"Series", published:"Published"};
+
+function renderTabs(){
+  const bar = document.getElementById("tabbar");
+  if(!SIGNED_IN){ bar.innerHTML = ""; return; }
+  bar.innerHTML = `<div class="tabs" role="tablist">` +
+    ["review","series","published"].map(t=>{
+      const c = COUNTS[t];
+      const n = c===null ? "" : `<span class="n">${c}</span>`;
+      return `<button class="tab" role="tab" data-tab="${t}"
+        aria-selected="${t===ACTIVE_TAB}">${TAB_LABEL[t]}${n}</button>`;
+    }).join("") + `</div>`;
+  bar.querySelectorAll(".tab").forEach(b=>{
+    b.onclick = ()=>{ if(b.dataset.tab!==ACTIVE_TAB){ ACTIVE_TAB = b.dataset.tab; renderTabs(); loadActive(); } };
+  });
+}
+function setCount(tab, n){ COUNTS[tab] = n; renderTabs(); }
+
+function topbar(label){
+  return `<div class="topbar">
+    <span class="count">${label}</span>
+    <button class="btn quiet" id="signout">Sign out</button>
+  </div>`;
+}
+function wireSignout(){ const b = document.getElementById("signout"); if(b) b.onclick = signOut; }
+
+function loadActive(){
+  if(ACTIVE_TAB==="review") return loadReview();
+  if(ACTIVE_TAB==="series") return loadSeries();
+  if(ACTIVE_TAB==="published") return loadPublished();
+}
+
+// RLS denies non-admins. Show one clear, non-technical message.
+function showNotAdmin(){
+  SIGNED_IN = false; renderTabs();
+  app.innerHTML = `<div class="msg">This account is not an admin.<br>
+    <button class="btn quiet" id="so">Sign out</button></div>`;
+  document.getElementById("so").onclick = signOut;
+}
+
+/* ---------- shared card helpers ---------- */
+function setNote(card, text){ const n = card.querySelector(".cardnote"); if(n) n.textContent = text || ""; }
+function disableCard(card, on){ card.querySelectorAll("button").forEach(b=>b.disabled=on); }
+
+function optionList(map, selected){
+  return Object.entries(map).map(([v,l])=>
+    `<option value="${v}"${v===selected?" selected":""}>${l}</option>`).join("");
+}
+
+// Remove a card, drop the tab count by one, show empty state if the feed clears.
+function removeCard(card, verb, emptyMsg){
+  if(verb) toast(verb);
+  card.remove();
+  const c = COUNTS[ACTIVE_TAB];
+  if(typeof c === "number") setCount(ACTIVE_TAB, Math.max(0, c-1));
+  const remaining = app.querySelectorAll(".ecard").length;
+  const count = app.querySelector(".count");
+  if(count && typeof COUNTS[ACTIVE_TAB] === "number") count.textContent = countLabel(ACTIVE_TAB, COUNTS[ACTIVE_TAB]);
+  if(remaining===0){
+    const feed = app.querySelector(".feed");
+    if(feed) feed.innerHTML = `<div class="msg">${emptyMsg||"Nothing here."}</div>`;
+  }
+}
+
+function countLabel(tab, n){
+  if(tab==="review") return `${n} awaiting review`;
+  if(tab==="series") return `${n} proposed ${n===1?"series":"series"}`;
+  return `${n} published upcoming`;
+}
+
+/* ==========================================================================
+   VIEW 1 — Review: needs_review one-offs (the existing queue).
+   ========================================================================== */
+async function loadReview(){
   app.innerHTML = `<div class="msg">Loading the queue...</div>`;
   const {data,error} = await db.from("events")
     .select("*, venues(name)")
     .eq("status","needs_review")
     .order("starts_at");
-
-  if(error){
-    // RLS denies non-admins. Show a clear, non-technical message.
-    app.innerHTML = `<div class="msg">This account is not an admin.<br>
-      <button class="btn quiet" id="so">Sign out</button></div>`;
-    document.getElementById("so").onclick = signOut;
-    return;
-  }
-  renderQueue(data||[]);
+  if(error){ showNotAdmin(); return; }
+  const rows = data||[];
+  setCount("review", rows.length);
+  renderEventList(rows, "review", "Nothing waiting. The queue is clear.");
 }
 
-function renderQueue(rows){
-  const header = `<div class="topbar">
-    <span class="count">${rows.length} awaiting review</span>
-    <button class="btn quiet" id="signout">Sign out</button>
-  </div>`;
+/* ==========================================================================
+   VIEW 3 — Published: live upcoming events, for fixes and cancellations.
+   ========================================================================== */
+async function loadPublished(){
+  app.innerHTML = `<div class="msg">Loading published events...</div>`;
+  const {data,error} = await db.from("events")
+    .select("*, venues(name)")
+    .eq("status","published")
+    .gte("starts_at", startOfTodayET_ISO())
+    .order("starts_at");
+  if(error){ showNotAdmin(); return; }
+  const rows = data||[];
+  setCount("published", rows.length);
+  renderEventList(rows, "published", "No published events coming up.");
+}
 
+// Shared event-list renderer for Review and Published. `mode` picks the actions.
+function renderEventList(rows, mode, emptyMsg){
+  const header = topbar(countLabel(mode, rows.length));
   if(!rows.length){
-    app.innerHTML = header + `<div class="msg">Nothing waiting. The queue is clear.</div>`;
-    document.getElementById("signout").onclick = signOut;
-    return;
+    app.innerHTML = header + `<div class="msg">${emptyMsg}</div>`;
+    wireSignout(); return;
   }
-
   let html = header + `<div class="feed">`;
   rows.forEach(e=>{
+    ROWS[e.id] = e;
     const venue = e.venues && e.venues.name ? esc(e.venues.name) : "No venue";
+    const actions = mode==="review"
+      ? `<button class="btn approve" data-act="approve">Approve</button>
+         <button class="btn reject" data-act="reject">Reject</button>
+         <button class="btn" data-act="edit">Edit</button>
+         <button class="btn quiet" data-act="delete">Delete</button>`
+      : `<button class="btn" data-act="edit">Edit</button>
+         <button class="btn reject" data-act="unpublish">Unpublish</button>
+         <button class="btn reject" data-act="cancel">Cancel</button>
+         <button class="btn quiet" data-act="delete">Delete</button>`;
     html += `<div class="ecard" data-id="${e.id}">
       <div class="view">
         <p class="venue">${venue}</p>
@@ -250,78 +388,58 @@ function renderQueue(rows){
           <span class="tag src">${esc(e.source)}</span>
         </div>
         ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ""}
-        <div class="actions">
-          <button class="btn approve" data-act="approve">Approve</button>
-          <button class="btn reject" data-act="reject">Reject</button>
-          <button class="btn" data-act="edit">Edit</button>
-          <button class="btn quiet" data-act="delete">Delete</button>
-        </div>
+        <div class="actions">${actions}</div>
         <div class="cardnote"></div>
       </div>
     </div>`;
   });
   html += `</div>`;
   app.innerHTML = html;
-  document.getElementById("signout").onclick = signOut;
-
-  // store rows by id for edit prefill
-  rows.forEach(e=>{ ROWS[e.id] = e; });
+  wireSignout();
 
   app.querySelectorAll(".ecard").forEach(card=>{
     card.querySelector(".actions").addEventListener("click", ev=>{
       const b = ev.target.closest("button[data-act]"); if(!b) return;
-      handleAction(card, b.dataset.act);
+      handleEventAction(card, b.dataset.act, mode);
     });
   });
 }
 
-const ROWS = {};
-
-function setNote(card, text){ card.querySelector(".cardnote").textContent = text || ""; }
-function disableCard(card, on){ card.querySelectorAll("button").forEach(b=>b.disabled=on); }
-
-async function handleAction(card, act){
+function handleEventAction(card, act, mode){
   const id = card.dataset.id;
-  if(act==="approve") return updateStatus(card, id, "published", "Published");
-  if(act==="reject")  return updateStatus(card, id, "rejected", "Rejected");
-  if(act==="edit")    return openEditor(card, id);
-  if(act==="delete")  return doDelete(card, id);
+  if(act==="approve")   return updateEventStatus(card, id, "published", "Published", "Nothing waiting. The queue is clear.");
+  if(act==="reject")    return updateEventStatus(card, id, "rejected", "Rejected", "Nothing waiting. The queue is clear.");
+  if(act==="unpublish") return updateEventStatus(card, id, "needs_review", "Sent back to review", "No published events coming up.");
+  if(act==="cancel")    return updateEventStatus(card, id, "archived", "Cancelled", "No published events coming up.");
+  if(act==="edit")      return openEventEditor(card, id, mode);
+  if(act==="delete")    return doDeleteEvent(card, id, mode);
 }
 
-async function updateStatus(card, id, status, verb){
+async function updateEventStatus(card, id, status, verb, emptyMsg){
   disableCard(card, true); setNote(card, "Saving...");
   const {error} = await db.from("events").update({status}).eq("id", id);
   if(error){ disableCard(card,false); setNote(card, "Error: " + error.message); return; }
-  removeCard(card, verb);
+  // Sending an event to review/published/archived changes another tab's count too.
+  bumpOtherCount(status);
+  removeCard(card, verb, emptyMsg);
 }
 
-async function doDelete(card, id){
+// When status changes, the destination tab's cached count is now stale.
+function bumpOtherCount(status){
+  if(status==="needs_review" && typeof COUNTS.review==="number") setCount("review", COUNTS.review+1);
+  if(status==="published" && typeof COUNTS.published==="number") setCount("published", COUNTS.published+1);
+}
+
+async function doDeleteEvent(card, id, mode){
   if(!confirm("Delete this event for good? This can't be undone.")) return;
+  const emptyMsg = mode==="review" ? "Nothing waiting. The queue is clear." : "No published events coming up.";
   disableCard(card, true); setNote(card, "Deleting...");
   const {error} = await db.from("events").delete().eq("id", id);
   if(error){ disableCard(card,false); setNote(card, "Error: " + error.message); return; }
-  removeCard(card, "Deleted");
+  removeCard(card, "Deleted", emptyMsg);
 }
 
-function removeCard(card, verb){
-  toast(verb);
-  card.remove();
-  // update the count and empty state
-  const remaining = app.querySelectorAll(".ecard").length;
-  const count = app.querySelector(".count");
-  if(count) count.textContent = `${remaining} awaiting review`;
-  if(remaining===0){
-    const feed = app.querySelector(".feed");
-    if(feed) feed.innerHTML = `<div class="msg">Nothing waiting. The queue is clear.</div>`;
-  }
-}
-
-function optionList(map, selected){
-  return Object.entries(map).map(([v,l])=>
-    `<option value="${v}"${v===selected?" selected":""}>${l}</option>`).join("");
-}
-
-function openEditor(card, id){
+function openEventEditor(card, id, mode){
   const e = ROWS[id];
   const {date, time} = isoToET(e.starts_at);
   const view = card.querySelector(".view");
@@ -351,12 +469,11 @@ function openEditor(card, id){
     </div>
     <div class="cardnote"></div>`;
   card.appendChild(ed);
-
   ed.querySelector('[data-ed="cancel"]').onclick = ()=>{ ed.remove(); view.style.display=""; };
-  ed.querySelector('[data-ed="save"]').onclick = ()=>saveEdit(card, id, ed, view);
+  ed.querySelector('[data-ed="save"]').onclick = ()=>saveEventEdit(card, id, ed, view);
 }
 
-async function saveEdit(card, id, ed, view){
+async function saveEventEdit(card, id, ed, view){
   const title = ed.querySelector(".e-title").value.trim();
   const dateStr = ed.querySelector(".e-date").value;
   const timeStr = ed.querySelector(".e-time").value;
@@ -380,10 +497,8 @@ async function saveEdit(card, id, ed, view){
   if(error){ ed.querySelectorAll("button").forEach(b=>b.disabled=false);
     note.textContent = "Error: " + error.message; return; }
 
-  // refresh the stored row and re-render this card's view in place
   ROWS[id] = data;
   ed.remove();
-  const venue = data.venues && data.venues.name ? esc(data.venues.name) : "No venue";
   view.querySelector(".venue").textContent = data.venues && data.venues.name ? data.venues.name : "No venue";
   view.querySelector(".etitle").textContent = data.title;
   view.querySelector(".meta").innerHTML = `${esc(fmtWhen(data.starts_at))} &middot; ${VILLAGE[data.village]||esc(data.village)}`;
@@ -402,14 +517,202 @@ async function saveEdit(card, id, ed, view){
   toast("Saved");
 }
 
+/* ==========================================================================
+   VIEW 2 — Series: proposed recurring rules from the scout.
+   ========================================================================== */
+async function loadSeries(){
+  app.innerHTML = `<div class="msg">Loading proposed series...</div>`;
+  const {data,error} = await db.from("recurring_rules")
+    .select("*, venues(name)")
+    .eq("source","press_scout")
+    .eq("active", false)
+    .order("season_start");
+  if(error){ showNotAdmin(); return; }
+  const rows = data||[];
+  setCount("series", rows.length);
+  renderSeries(rows);
+}
+
+function seasonRange(rule){
+  const a = fmtCalDate(rule.season_start);
+  const b = fmtCalDate(rule.season_end);
+  if(a && b) return `${a} - ${b}`;
+  return a || b || "";
+}
+function daysLabel(days){
+  if(!Array.isArray(days) || !days.length) return "";
+  return days.slice().sort((x,y)=>x-y).map(d=>DOW_SHORT[d]).join("/");
+}
+
+function renderSeries(rows){
+  const header = topbar(countLabel("series", rows.length));
+  if(!rows.length){
+    app.innerHTML = header + `<div class="msg">No proposed series to review.</div>`;
+    wireSignout(); return;
+  }
+  let html = header + `<div class="feed">`;
+  rows.forEach(r=>{
+    ROWS[r.id] = r;
+    const venue = r.venues && r.venues.name ? esc(r.venues.name) : "No venue";
+    html += `<div class="ecard" data-id="${r.id}">
+      <div class="view">
+        <p class="venue">${venue}</p>
+        <p class="etitle">${esc(r.title)}</p>
+        <p class="meta">${esc(daysLabel(r.days_of_week))} &middot; ${esc(fmtTimeOfDayLabel(r.start_time))}</p>
+        <p class="meta">${esc(seasonRange(r))}</p>
+        <div class="tags">
+          <span class="tag">${CATEGORY[r.category]||esc(r.category||"")}</span>
+          <span class="tag ${costClass(r.cost)}">${COST[r.cost]||esc(r.cost||"")}</span>
+          <span class="tag">${AUDIENCE[r.audience]||esc(r.audience||"")}</span>
+          <span class="tag src">weekly</span>
+        </div>
+        <div class="actions">
+          <button class="btn approve" data-act="approve">Approve</button>
+          <button class="btn reject" data-act="reject">Reject</button>
+        </div>
+        <div class="cardnote"></div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  app.innerHTML = html;
+  wireSignout();
+
+  app.querySelectorAll(".ecard").forEach(card=>{
+    card.querySelector(".actions").addEventListener("click", ev=>{
+      const b = ev.target.closest("button[data-act]"); if(!b) return;
+      if(b.dataset.act==="approve") approveSeries(card, card.dataset.id);
+      if(b.dataset.act==="reject")  rejectSeries(card, card.dataset.id);
+    });
+  });
+}
+
+async function rejectSeries(card, id){
+  if(!confirm("Reject this series? The proposed rule will be deleted. No events are created.")) return;
+  disableCard(card, true); setNote(card, "Rejecting...");
+  const {error} = await db.from("recurring_rules").delete().eq("id", id);
+  if(error){ disableCard(card,false); setNote(card, "Error: " + error.message); return; }
+  removeCard(card, "Rejected", "No proposed series to review.");
+}
+
+// Approve: activate the rule, then expand it into published events (idempotent).
+async function approveSeries(card, id){
+  const rule = ROWS[id];
+  disableCard(card, true); setNote(card, "Approving...");
+
+  // 1) activate the rule
+  const {error:actErr} = await db.from("recurring_rules").update({active:true}).eq("id", id);
+  if(actErr){ disableCard(card,false); setNote(card, "Error: " + actErr.message); return; }
+
+  // 2) look up the venue's village
+  const {data:venue, error:vErr} = await db.from("venues")
+    .select("village").eq("id", rule.venue_id).single();
+  if(vErr){ disableCard(card,false); setNote(card, "Error: " + vErr.message); return; }
+  const village = venue ? venue.village : null;
+
+  // 3) build candidate dates in [max(today, season_start) .. min(today+8w, season_end)]
+  setNote(card, "Expanding dates...");
+  const dates = seriesDates(rule);
+
+  if(!dates.length){
+    // Rule activated but its window produced nothing (e.g. season already ended).
+    removeCard(card, "Approved: no dates in range", "No proposed series to review.");
+    return;
+  }
+
+  // 4) de-dup against existing recurring_rule events for this rule
+  const {data:existing, error:exErr} = await db.from("events")
+    .select("source_ref")
+    .eq("source","recurring_rule")
+    .like("source_ref", `${id}:%`);
+  if(exErr){ disableCard(card,false); setNote(card, "Error: " + exErr.message); return; }
+  const seen = new Set((existing||[]).map(r=>r.source_ref));
+
+  const [hh] = rule.start_time.split(":").map(Number);
+  const startHM = rule.start_time.slice(0,5);              // "HH:MM"
+  const endHM = rule.end_time ? rule.end_time.slice(0,5) : null;
+
+  const toInsert = [];
+  dates.forEach(dStr=>{
+    const source_ref = `${id}:${dStr}`;
+    if(seen.has(source_ref)) return;
+    toInsert.push({
+      venue_id: rule.venue_id,
+      title: rule.title,
+      starts_at: etToISO(dStr, startHM),
+      ends_at: endHM ? etToISO(dStr, endHM) : null,
+      village,
+      time_of_day: timeOfDay(hh),
+      audience: rule.audience,
+      category: rule.category,
+      cost: rule.cost,
+      recurrence: "weekly",
+      status: "published",
+      source: "recurring_rule",
+      source_ref
+    });
+  });
+
+  if(toInsert.length){
+    const {error:insErr} = await db.from("events").insert(toInsert);
+    if(insErr){ disableCard(card,false); setNote(card, "Error: " + insErr.message); return; }
+    // Newly published events land in the Published tab.
+    if(typeof COUNTS.published==="number") setCount("published", COUNTS.published + toInsert.length);
+  }
+
+  const n = toInsert.length;
+  removeCard(card, `Approved: added ${n} date${n===1?"":"s"}`, "No proposed series to review.");
+}
+
+// Compute the list of "YYYY-MM-DD" dates the rule fires on within its clamped window.
+function seriesDates(rule){
+  const days = new Set((rule.days_of_week||[]).map(Number));
+  if(!days.size) return [];
+
+  // window bounds as local Date objects (calendar dates, midnight local)
+  const t = todayET();
+  const today = new Date(t.y, t.m-1, t.d);
+  const eightWeeks = new Date(t.y, t.m-1, t.d + 56); // today + 8 weeks
+
+  const [sy,sm,sd] = rule.season_start.split("-").map(Number);
+  const seasonStart = new Date(sy, sm-1, sd);
+  const [ey,em,ed] = rule.season_end.split("-").map(Number);
+  const seasonEnd = new Date(ey, em-1, ed);
+
+  const start = today > seasonStart ? today : seasonStart;
+  const end   = eightWeeks < seasonEnd ? eightWeeks : seasonEnd;
+
+  const out = [];
+  const cur = new Date(start);
+  while(cur <= end){
+    if(days.has(cur.getDay())){ // getDay(): 0=Sun..6=Sat, matches days_of_week convention
+      out.push(ymd(cur.getFullYear(), cur.getMonth()+1, cur.getDate()));
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
 /* ---------- session wiring ---------- */
+let SIGNED_IN = false;
+
 function route(session){
-  if(session) loadQueue();
-  else renderLogin(false);
+  if(session){
+    SIGNED_IN = true;
+    // Reset cached counts on a fresh sign-in so stale numbers never linger.
+    COUNTS.review = COUNTS.series = COUNTS.published = null;
+    ACTIVE_TAB = "review";
+    renderTabs();
+    loadActive();
+  } else {
+    SIGNED_IN = false;
+    renderTabs();
+    renderLogin(false);
+  }
 }
 // onAuthStateChange fires an INITIAL_SESSION event on subscribe, which covers
 // both the returning-from-magic-link case and an existing session. We render
-// only from here so the queue never loads twice.
+// only from here so the view never loads twice.
 let LAST_UID = undefined;
 db.auth.onAuthStateChange((_event, session)=>{
   const uid = session ? session.user.id : null;
