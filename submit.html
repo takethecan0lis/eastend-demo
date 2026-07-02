@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow">
+<title>Submit an event - Montauk The App</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand-red:#B0342B;
+    --red-ink:#9A2B22;
+    --red-wash:#F7E7E4;
+    --bg:#FBFAF7;
+    --surface:#FFFFFF;
+    --ink:#1F1D1B;
+    --muted:#6E685F;
+    --faint:#9A948B;
+    --line:#E7E2D8;
+    --free-ink:#2F6B34;    --free-bg:#E6F0E1;
+    --ticket-ink:#8A5A00;  --ticket-bg:#F6ECD6;
+    --r-card:12px; --r-chip:999px; --r-tag:6px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;background:var(--bg);padding:0 0 48px}
+  header{padding:22px 20px 0;text-align:center}
+  .mark-sub{font-family:"Anton",sans-serif;font-size:15px;line-height:1;
+    letter-spacing:0.3em;text-indent:0.3em;text-transform:uppercase;color:var(--brand-red)}
+  .h1{font-family:"Anton",sans-serif;font-size:34px;line-height:1;text-transform:uppercase;
+    color:var(--brand-red);margin:6px 0 0}
+  .intro{margin:12px 0 4px;font-size:14px;line-height:1.4;color:var(--muted)}
+  form{padding:16px 20px}
+  .field{margin-bottom:16px}
+  label{display:block;font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px}
+  label .req{color:var(--brand-red)}
+  .hint{font-weight:400;color:var(--faint);font-size:12px}
+  input,select,textarea{width:100%;font:inherit;font-size:15px;color:var(--ink);
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:11px 12px;min-height:44px}
+  textarea{min-height:88px;resize:vertical}
+  .row{display:flex;gap:10px}
+  .row .field{flex:1}
+  button.submit{width:100%;font:inherit;font-size:16px;font-weight:600;color:#fff;
+    background:var(--brand-red);border:0;border-radius:999px;padding:14px;min-height:52px;
+    cursor:pointer;margin-top:4px}
+  button.submit:disabled{opacity:0.6;cursor:default}
+  .note{margin-top:14px;font-size:13px;line-height:1.4;padding:12px 14px;border-radius:10px;display:none}
+  .note.ok{display:block;background:var(--free-bg);color:var(--free-ink)}
+  .note.err{display:block;background:var(--red-wash);color:var(--red-ink)}
+  /* honeypot: hidden from humans and assistive tech */
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--brand-red);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark-sub">Montauk - The App</div>
+    <h1 class="h1">Submit an event</h1>
+    <p class="intro">What's on out here happens here. Add a show and we'll review it before it goes live.</p>
+  </header>
+
+  <form id="form" autocomplete="off">
+    <div class="field">
+      <label for="venue">Venue <span class="req">*</span></label>
+      <select id="venue" required><option value="">Loading venues...</option></select>
+    </div>
+
+    <div class="field">
+      <label for="title">Event title <span class="req">*</span></label>
+      <input id="title" type="text" required maxlength="140" placeholder="Sunset set with the house band">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="date">Date <span class="req">*</span></label>
+        <input id="date" type="date" required>
+      </div>
+      <div class="field">
+        <label for="start">Start <span class="req">*</span></label>
+        <input id="start" type="time" required>
+      </div>
+      <div class="field">
+        <label for="end">End <span class="hint">(optional)</span></label>
+        <input id="end" type="time">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="category">Category <span class="req">*</span></label>
+        <select id="category" required></select>
+      </div>
+      <div class="field">
+        <label for="cost">Cost <span class="req">*</span></label>
+        <select id="cost" required></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="audience">Audience</label>
+      <select id="audience"></select>
+    </div>
+
+    <div class="field">
+      <label for="description">Description <span class="hint">(optional)</span></label>
+      <textarea id="description" maxlength="800" placeholder="A line or two about the show."></textarea>
+    </div>
+
+    <div class="field">
+      <label for="email">Your email <span class="hint">(optional, so we can follow up)</span></label>
+      <input id="email" type="email" placeholder="you@example.com">
+    </div>
+
+    <!-- honeypot: real people never see or fill this -->
+    <div class="hp" aria-hidden="true">
+      <label for="company">Company</label>
+      <input id="company" name="company" type="text" tabindex="-1" autocomplete="off">
+    </div>
+
+    <button class="submit" id="submitBtn" type="submit">Submit for review</button>
+    <div class="note" id="note"></div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://gzhrxycyfekmrobrhoxt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hoqIkzE49xN73b4F6uxo4A_ZsCfVyRX";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const PAGE_LOADED_AT = Date.now();
+const MIN_FILL_MS = 3000; // anything faster is a bot
+
+const CATEGORY = {live_music:"Live music",food_drink:"Food & drink",arts_culture:"Arts & culture",
+  civic:"Civic",kids_family:"Kids & family",outdoors:"Outdoors",nightlife:"Nightlife",
+  market:"Market",sports_fishing:"Sports & fishing"};
+const COST = {free:"Free",no_cover:"No cover",ticketed:"Ticketed",paid:"Paid"};
+const AUDIENCE = {all_ages:"All ages",family_friendly:"Family friendly",adult:"Adult"};
+const VILLAGE = {montauk:"Montauk",amagansett:"Amagansett",east_hampton:"East Hampton",
+  springs:"Springs",wainscott:"Wainscott",sag_harbor:"Sag Harbor",other:"East End"};
+
+/* --------------------------------------------------------------------------
+   Timezone: the submitter types wall-clock Eastern time. We must store the
+   correct UTC instant so the demo (which formats with timeZone America/New_York)
+   reads it back as the same wall-clock time. We look up the real America/New_York
+   offset for the given date, so EDT (-04:00) and EST (-05:00) are both correct.
+   No offset is hardcoded.
+   -------------------------------------------------------------------------- */
+const TZ = "America/New_York";
+function etOffsetMinutes(y,m,d,hh,mi){
+  // Build a UTC instant from the naive wall-clock numbers, then ask what ET
+  // wall-clock that instant maps to. The gap is the offset for that moment.
+  const asUTC = Date.UTC(y, m-1, d, hh, mi);
+  const fmt = new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",
+    day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+  const p = {};
+  for(const part of fmt.formatToParts(asUTC)) p[part.type] = part.value;
+  let hour = parseInt(p.hour,10); if(hour===24) hour=0;
+  const asET = Date.UTC(parseInt(p.year,10), parseInt(p.month,10)-1,
+    parseInt(p.day,10), hour, parseInt(p.minute,10));
+  return (asET - asUTC) / 60000; // minutes ET is ahead of UTC (negative)
+}
+// dateStr "YYYY-MM-DD", timeStr "HH:MM" (ET wall clock) -> ISO instant string
+function etToISO(dateStr, timeStr){
+  if(!dateStr || !timeStr) return null;
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const [hh,mi] = timeStr.split(":").map(Number);
+  const off = etOffsetMinutes(y,m,d,hh,mi);
+  const utcMs = Date.UTC(y, m-1, d, hh, mi) - off*60000;
+  return new Date(utcMs).toISOString();
+}
+function timeOfDay(hh){
+  if(hh < 17) return "daytime";
+  if(hh < 22) return "evening";
+  return "late_night";
+}
+
+// venue id -> village, filled once venues load
+const venueVillage = {};
+
+function fillSelect(el, map, selected, placeholder){
+  el.innerHTML = "";
+  if(placeholder){
+    const p = document.createElement("option");
+    p.value = ""; p.textContent = placeholder; p.disabled = true;
+    if(!selected) p.selected = true;
+    el.appendChild(p);
+  }
+  for(const [val,label] of Object.entries(map)){
+    const o = document.createElement("option");
+    o.value = val; o.textContent = label;
+    if(val===selected) o.selected = true;
+    el.appendChild(o);
+  }
+}
+
+async function loadVenues(){
+  const sel = document.getElementById("venue");
+  const {data,error} = await db.from("venues").select("id,name,village").order("name");
+  if(error){
+    sel.innerHTML = `<option value="">Couldn't load venues</option>`;
+    showNote("err","Couldn't load venues. Refresh and try again.");
+    return;
+  }
+  sel.innerHTML = `<option value="">Choose a venue</option>`;
+  (data||[]).forEach(v=>{
+    venueVillage[v.id] = v.village;
+    const o = document.createElement("option");
+    o.value = v.id;
+    o.textContent = v.village ? `${v.name} - ${VILLAGE[v.village]||v.village}` : v.name;
+    sel.appendChild(o);
+  });
+}
+
+function showNote(kind, text){
+  const n = document.getElementById("note");
+  n.className = "note " + kind;
+  n.textContent = text;
+}
+function succeed(){
+  showNote("ok","Thanks - your event is in the review queue. We'll check it before it goes live.");
+  document.getElementById("form").reset();
+  fillSelect(document.getElementById("category"), CATEGORY, "", "Choose a category");
+  fillSelect(document.getElementById("cost"), COST, "", "Choose a cost");
+  fillSelect(document.getElementById("audience"), AUDIENCE, "all_ages");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+document.getElementById("form").addEventListener("submit", async (ev)=>{
+  ev.preventDefault();
+  const btn = document.getElementById("submitBtn");
+
+  // Anti-spam: honeypot filled -> silently pretend success, insert nothing.
+  if(document.getElementById("company").value.trim() !== ""){ succeed(); return; }
+  // Anti-spam: submitted too fast -> treat as bot, silently succeed, no insert.
+  if(Date.now() - PAGE_LOADED_AT < MIN_FILL_MS){ succeed(); return; }
+
+  const venue_id = document.getElementById("venue").value;
+  const title = document.getElementById("title").value.trim();
+  const dateStr = document.getElementById("date").value;
+  const startStr = document.getElementById("start").value;
+  const endStr = document.getElementById("end").value;
+  const category = document.getElementById("category").value;
+  const cost = document.getElementById("cost").value;
+  const audience = document.getElementById("audience").value;
+  let description = document.getElementById("description").value.trim();
+  const email = document.getElementById("email").value.trim();
+
+  if(!venue_id || !title || !dateStr || !startStr || !category || !cost){
+    showNote("err","Please fill in the required fields.");
+    return;
+  }
+
+  const starts_at = etToISO(dateStr, startStr);
+  const ends_at = endStr ? etToISO(dateStr, endStr) : null;
+  const village = venueVillage[venue_id] || "other";
+  const [hh] = startStr.split(":").map(Number);
+
+  // We don't have a submitter column; keep contact in the description so a
+  // reviewer can follow up. Never store anything sensitive beyond this.
+  if(email) description = (description ? description + "\n\n" : "") + "Submitted by: " + email;
+
+  btn.disabled = true;
+  const {error} = await db.from("events").insert({
+    venue_id, title, description: description || null,
+    starts_at, ends_at, village,
+    time_of_day: timeOfDay(hh),
+    audience, category, cost,
+    recurrence: "one_off",
+    status: "needs_review",
+    source: "submission"
+  });
+  btn.disabled = false;
+
+  if(error){ showNote("err","Something went wrong: " + error.message); return; }
+  succeed();
+});
+
+fillSelect(document.getElementById("category"), CATEGORY, "", "Choose a category");
+fillSelect(document.getElementById("cost"), COST, "", "Choose a cost");
+fillSelect(document.getElementById("audience"), AUDIENCE, "all_ages");
+loadVenues();
+</script>
+</body>
+</html>

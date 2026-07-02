@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex,nofollow">
+<title>Review queue - Montauk The App</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --brand-red:#B0342B;
+    --red-ink:#9A2B22;
+    --red-wash:#F7E7E4;
+    --bg:#FBFAF7;
+    --surface:#FFFFFF;
+    --ink:#1F1D1B;
+    --muted:#6E685F;
+    --faint:#9A948B;
+    --line:#E7E2D8;
+    --free-ink:#2F6B34;    --free-bg:#E6F0E1;
+    --ticket-ink:#8A5A00;  --ticket-bg:#F6ECD6;
+    --review-ink:#7A736A;  --review-bg:#EFEBE3;
+    --r-card:12px; --r-chip:999px; --r-tag:6px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;background:var(--bg);padding:0 0 48px}
+  header{padding:22px 20px 12px;text-align:center;border-bottom:1px solid var(--line)}
+  .mark-sub{font-family:"Anton",sans-serif;font-size:15px;line-height:1;
+    letter-spacing:0.3em;text-indent:0.3em;text-transform:uppercase;color:var(--brand-red)}
+  .h1{font-family:"Anton",sans-serif;font-size:30px;line-height:1;text-transform:uppercase;
+    color:var(--brand-red);margin:6px 0 0}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 20px}
+  .count{font-family:"Oswald",sans-serif;font-size:14px;font-weight:600;letter-spacing:0.04em;
+    text-transform:uppercase;color:var(--ink)}
+  .msg{padding:40px 20px;text-align:center;color:var(--muted);font-size:15px;line-height:1.5}
+
+  /* buttons */
+  .btn{font:inherit;font-size:14px;font-weight:600;border-radius:999px;padding:9px 16px;
+    min-height:44px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+  .btn.primary{background:var(--brand-red);border-color:var(--brand-red);color:#fff}
+  .btn.approve{background:var(--free-bg);border-color:var(--free-bg);color:var(--free-ink)}
+  .btn.reject{background:var(--red-wash);border-color:var(--red-wash);color:var(--red-ink)}
+  .btn.quiet{background:none;border:0;color:var(--faint);font-weight:500;text-decoration:underline;
+    min-height:auto;padding:6px 4px}
+  .btn:disabled{opacity:0.6;cursor:default}
+
+  /* login card */
+  .login{padding:28px 20px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);padding:18px}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  input,select,textarea{width:100%;font:inherit;font-size:15px;color:var(--ink);
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 12px;min-height:44px}
+  textarea{min-height:72px;resize:vertical}
+  .login .btn.primary{width:100%;margin-top:12px}
+
+  /* queue cards */
+  .feed{padding:8px 20px}
+  .ecard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);
+    padding:14px 16px;margin-bottom:12px}
+  .venue{font-size:16px;font-weight:600;color:var(--red-ink);margin:0}
+  .etitle{font-size:15px;font-weight:500;color:var(--ink);margin:2px 0 0}
+  .meta{font-size:13px;color:var(--muted);margin:8px 0 0}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tag{font-size:11px;font-weight:600;letter-spacing:0.02em;padding:2px 8px;border-radius:var(--r-tag);
+    background:var(--surface);border:1px solid var(--line);color:var(--muted)}
+  .tag.free{background:var(--free-bg);border-color:var(--free-bg);color:var(--free-ink)}
+  .tag.ticket{background:var(--ticket-bg);border-color:var(--ticket-bg);color:var(--ticket-ink)}
+  .tag.src{background:var(--review-bg);border-color:var(--review-bg);color:var(--review-ink)}
+  .desc{font-size:13px;line-height:1.45;color:var(--ink);margin:10px 0 0;white-space:pre-wrap}
+  .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+  .cardnote{font-size:12px;color:var(--muted);margin-top:8px;min-height:1em}
+
+  /* inline editor */
+  .edit{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+  .edit .field{margin-bottom:10px}
+  .edit .row{display:flex;gap:8px}
+  .edit .row .field{flex:1}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:20;
+    background:var(--ink);color:#fff;font-size:13px;font-weight:500;padding:10px 16px;
+    border-radius:999px;opacity:0;transition:opacity .2s;pointer-events:none;max-width:420px}
+  .toast.show{opacity:0.95}
+
+  a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--brand-red);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark-sub">Montauk - The App</div>
+    <h1 class="h1">Review queue</h1>
+  </header>
+  <div id="app"><div class="msg">Loading...</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://gzhrxycyfekmrobrhoxt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hoqIkzE49xN73b4F6uxo4A_ZsCfVyRX";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TZ = "America/New_York";
+const CATEGORY = {live_music:"Live music",food_drink:"Food & drink",arts_culture:"Arts & culture",
+  civic:"Civic",kids_family:"Kids & family",outdoors:"Outdoors",nightlife:"Nightlife",
+  market:"Market",sports_fishing:"Sports & fishing"};
+const COST = {free:"Free",no_cover:"No cover",ticketed:"Ticketed",paid:"Paid"};
+const AUDIENCE = {all_ages:"All ages",family_friendly:"Family friendly",adult:"Adult"};
+const VILLAGE = {montauk:"Montauk",amagansett:"Amagansett",east_hampton:"East Hampton",
+  springs:"Springs",wainscott:"Wainscott",sag_harbor:"Sag Harbor",other:"East End"};
+
+/* --------------------------------------------------------------------------
+   Timezone helper (duplicated from submit.html so this file stays standalone).
+   Wall-clock Eastern in, correct UTC instant out. Uses the real America/New_York
+   offset for the given date, so EDT and EST are both handled. No hardcoded offset.
+   -------------------------------------------------------------------------- */
+function etOffsetMinutes(y,m,d,hh,mi){
+  const asUTC = Date.UTC(y, m-1, d, hh, mi);
+  const fmt = new Intl.DateTimeFormat("en-US",{timeZone:TZ,year:"numeric",month:"2-digit",
+    day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+  const p = {};
+  for(const part of fmt.formatToParts(asUTC)) p[part.type] = part.value;
+  let hour = parseInt(p.hour,10); if(hour===24) hour=0;
+  const asET = Date.UTC(parseInt(p.year,10), parseInt(p.month,10)-1,
+    parseInt(p.day,10), hour, parseInt(p.minute,10));
+  return (asET - asUTC) / 60000;
+}
+function etToISO(dateStr, timeStr){
+  if(!dateStr || !timeStr) return null;
+  const [y,m,d] = dateStr.split("-").map(Number);
+  const [hh,mi] = timeStr.split(":").map(Number);
+  const off = etOffsetMinutes(y,m,d,hh,mi);
+  const utcMs = Date.UTC(y, m-1, d, hh, mi) - off*60000;
+  return new Date(utcMs).toISOString();
+}
+function timeOfDay(hh){
+  if(hh < 17) return "daytime";
+  if(hh < 22) return "evening";
+  return "late_night";
+}
+// ISO instant -> {date:"YYYY-MM-DD", time:"HH:MM"} in ET, for edit inputs
+function isoToET(iso){
+  if(!iso) return {date:"", time:""};
+  const d = new Date(iso);
+  const parts = {};
+  for(const p of new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",
+    day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(d)) parts[p.type]=p.value;
+  let hh = parts.hour; if(hh==="24") hh="00";
+  return {date:`${parts.year}-${parts.month}-${parts.day}`, time:`${hh}:${parts.minute}`};
+}
+function fmtWhen(iso){
+  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,weekday:"short",month:"short",
+    day:"numeric",hour:"numeric",minute:"2-digit"}).format(new Date(iso));
+}
+function costClass(cost){
+  if(cost==="free"||cost==="no_cover") return "free";
+  if(cost==="ticketed"||cost==="paid") return "ticket";
+  return "";
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+const app = document.getElementById("app");
+let TOAST_T;
+function toast(text){
+  const t = document.getElementById("toast");
+  t.textContent = text; t.classList.add("show");
+  clearTimeout(TOAST_T);
+  TOAST_T = setTimeout(()=>t.classList.remove("show"), 2400);
+}
+
+/* ---------- auth ---------- */
+async function signOut(){ await db.auth.signOut(); }
+
+function renderLogin(sent){
+  if(sent){
+    app.innerHTML = `<div class="login"><div class="card">
+      <p style="margin:0;font-size:15px;line-height:1.5">Check your email for a login link. Open it on this device to sign in.</p>
+    </div></div>`;
+    return;
+  }
+  app.innerHTML = `<div class="login"><div class="card">
+    <label for="email">Admin email</label>
+    <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+    <button class="btn primary" id="sendLink">Send me a login link</button>
+    <div class="cardnote" id="loginNote"></div>
+  </div></div>`;
+  document.getElementById("sendLink").onclick = async ()=>{
+    const email = document.getElementById("email").value.trim();
+    const note = document.getElementById("loginNote");
+    if(!email){ note.textContent = "Enter your email."; return; }
+    const btn = document.getElementById("sendLink");
+    btn.disabled = true; note.textContent = "Sending...";
+    const {error} = await db.auth.signInWithOtp({
+      email, options:{ emailRedirectTo: window.location.href.split("#")[0] }
+    });
+    btn.disabled = false;
+    if(error){ note.textContent = "Couldn't send link: " + error.message; return; }
+    renderLogin(true);
+  };
+}
+
+/* ---------- queue ---------- */
+async function loadQueue(){
+  app.innerHTML = `<div class="msg">Loading the queue...</div>`;
+  const {data,error} = await db.from("events")
+    .select("*, venues(name)")
+    .eq("status","needs_review")
+    .order("starts_at");
+
+  if(error){
+    // RLS denies non-admins. Show a clear, non-technical message.
+    app.innerHTML = `<div class="msg">This account is not an admin.<br>
+      <button class="btn quiet" id="so">Sign out</button></div>`;
+    document.getElementById("so").onclick = signOut;
+    return;
+  }
+  renderQueue(data||[]);
+}
+
+function renderQueue(rows){
+  const header = `<div class="topbar">
+    <span class="count">${rows.length} awaiting review</span>
+    <button class="btn quiet" id="signout">Sign out</button>
+  </div>`;
+
+  if(!rows.length){
+    app.innerHTML = header + `<div class="msg">Nothing waiting. The queue is clear.</div>`;
+    document.getElementById("signout").onclick = signOut;
+    return;
+  }
+
+  let html = header + `<div class="feed">`;
+  rows.forEach(e=>{
+    const venue = e.venues && e.venues.name ? esc(e.venues.name) : "No venue";
+    html += `<div class="ecard" data-id="${e.id}">
+      <div class="view">
+        <p class="venue">${venue}</p>
+        <p class="etitle">${esc(e.title)}</p>
+        <p class="meta">${esc(fmtWhen(e.starts_at))} &middot; ${VILLAGE[e.village]||esc(e.village)}</p>
+        <div class="tags">
+          <span class="tag">${CATEGORY[e.category]||esc(e.category)}</span>
+          <span class="tag ${costClass(e.cost)}">${COST[e.cost]||esc(e.cost)}</span>
+          <span class="tag">${AUDIENCE[e.audience]||esc(e.audience)}</span>
+          <span class="tag src">${esc(e.source)}</span>
+        </div>
+        ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ""}
+        <div class="actions">
+          <button class="btn approve" data-act="approve">Approve</button>
+          <button class="btn reject" data-act="reject">Reject</button>
+          <button class="btn" data-act="edit">Edit</button>
+          <button class="btn quiet" data-act="delete">Delete</button>
+        </div>
+        <div class="cardnote"></div>
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  app.innerHTML = html;
+  document.getElementById("signout").onclick = signOut;
+
+  // store rows by id for edit prefill
+  rows.forEach(e=>{ ROWS[e.id] = e; });
+
+  app.querySelectorAll(".ecard").forEach(card=>{
+    card.querySelector(".actions").addEventListener("click", ev=>{
+      const b = ev.target.closest("button[data-act]"); if(!b) return;
+      handleAction(card, b.dataset.act);
+    });
+  });
+}
+
+const ROWS = {};
+
+function setNote(card, text){ card.querySelector(".cardnote").textContent = text || ""; }
+function disableCard(card, on){ card.querySelectorAll("button").forEach(b=>b.disabled=on); }
+
+async function handleAction(card, act){
+  const id = card.dataset.id;
+  if(act==="approve") return updateStatus(card, id, "published", "Published");
+  if(act==="reject")  return updateStatus(card, id, "rejected", "Rejected");
+  if(act==="edit")    return openEditor(card, id);
+  if(act==="delete")  return doDelete(card, id);
+}
+
+async function updateStatus(card, id, status, verb){
+  disableCard(card, true); setNote(card, "Saving...");
+  const {error} = await db.from("events").update({status}).eq("id", id);
+  if(error){ disableCard(card,false); setNote(card, "Error: " + error.message); return; }
+  removeCard(card, verb);
+}
+
+async function doDelete(card, id){
+  if(!confirm("Delete this event for good? This can't be undone.")) return;
+  disableCard(card, true); setNote(card, "Deleting...");
+  const {error} = await db.from("events").delete().eq("id", id);
+  if(error){ disableCard(card,false); setNote(card, "Error: " + error.message); return; }
+  removeCard(card, "Deleted");
+}
+
+function removeCard(card, verb){
+  toast(verb);
+  card.remove();
+  // update the count and empty state
+  const remaining = app.querySelectorAll(".ecard").length;
+  const count = app.querySelector(".count");
+  if(count) count.textContent = `${remaining} awaiting review`;
+  if(remaining===0){
+    const feed = app.querySelector(".feed");
+    if(feed) feed.innerHTML = `<div class="msg">Nothing waiting. The queue is clear.</div>`;
+  }
+}
+
+function optionList(map, selected){
+  return Object.entries(map).map(([v,l])=>
+    `<option value="${v}"${v===selected?" selected":""}>${l}</option>`).join("");
+}
+
+function openEditor(card, id){
+  const e = ROWS[id];
+  const {date, time} = isoToET(e.starts_at);
+  const view = card.querySelector(".view");
+  view.style.display = "none";
+  const ed = document.createElement("div");
+  ed.className = "edit";
+  ed.innerHTML = `
+    <div class="field"><label>Title</label>
+      <input class="e-title" type="text" value="${esc(e.title)}" maxlength="140"></div>
+    <div class="row">
+      <div class="field"><label>Date</label><input class="e-date" type="date" value="${date}"></div>
+      <div class="field"><label>Start</label><input class="e-time" type="time" value="${time}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Category</label>
+        <select class="e-category">${optionList(CATEGORY, e.category)}</select></div>
+      <div class="field"><label>Cost</label>
+        <select class="e-cost">${optionList(COST, e.cost)}</select></div>
+    </div>
+    <div class="field"><label>Audience</label>
+      <select class="e-audience">${optionList(AUDIENCE, e.audience)}</select></div>
+    <div class="field"><label>Description</label>
+      <textarea class="e-desc" maxlength="800">${esc(e.description||"")}</textarea></div>
+    <div class="actions">
+      <button class="btn primary" data-ed="save">Save</button>
+      <button class="btn" data-ed="cancel">Cancel</button>
+    </div>
+    <div class="cardnote"></div>`;
+  card.appendChild(ed);
+
+  ed.querySelector('[data-ed="cancel"]').onclick = ()=>{ ed.remove(); view.style.display=""; };
+  ed.querySelector('[data-ed="save"]').onclick = ()=>saveEdit(card, id, ed, view);
+}
+
+async function saveEdit(card, id, ed, view){
+  const title = ed.querySelector(".e-title").value.trim();
+  const dateStr = ed.querySelector(".e-date").value;
+  const timeStr = ed.querySelector(".e-time").value;
+  const category = ed.querySelector(".e-category").value;
+  const cost = ed.querySelector(".e-cost").value;
+  const audience = ed.querySelector(".e-audience").value;
+  const description = ed.querySelector(".e-desc").value.trim();
+  const note = ed.querySelector(".cardnote");
+
+  if(!title || !dateStr || !timeStr){ note.textContent = "Title, date and start are required."; return; }
+
+  const starts_at = etToISO(dateStr, timeStr);
+  const [hh] = timeStr.split(":").map(Number);
+  const patch = {title, starts_at, time_of_day:timeOfDay(hh), category, cost, audience,
+    description: description || null};
+
+  ed.querySelectorAll("button").forEach(b=>b.disabled=true);
+  note.textContent = "Saving...";
+  const {data,error} = await db.from("events").update(patch).eq("id", id)
+    .select("*, venues(name)").single();
+  if(error){ ed.querySelectorAll("button").forEach(b=>b.disabled=false);
+    note.textContent = "Error: " + error.message; return; }
+
+  // refresh the stored row and re-render this card's view in place
+  ROWS[id] = data;
+  ed.remove();
+  const venue = data.venues && data.venues.name ? esc(data.venues.name) : "No venue";
+  view.querySelector(".venue").textContent = data.venues && data.venues.name ? data.venues.name : "No venue";
+  view.querySelector(".etitle").textContent = data.title;
+  view.querySelector(".meta").innerHTML = `${esc(fmtWhen(data.starts_at))} &middot; ${VILLAGE[data.village]||esc(data.village)}`;
+  view.querySelector(".tags").innerHTML =
+    `<span class="tag">${CATEGORY[data.category]||esc(data.category)}</span>
+     <span class="tag ${costClass(data.cost)}">${COST[data.cost]||esc(data.cost)}</span>
+     <span class="tag">${AUDIENCE[data.audience]||esc(data.audience)}</span>
+     <span class="tag src">${esc(data.source)}</span>`;
+  let descEl = view.querySelector(".desc");
+  if(data.description){
+    if(!descEl){ descEl = document.createElement("p"); descEl.className="desc";
+      view.querySelector(".tags").after(descEl); }
+    descEl.textContent = data.description;
+  } else if(descEl){ descEl.remove(); }
+  view.style.display = "";
+  toast("Saved");
+}
+
+/* ---------- session wiring ---------- */
+function route(session){
+  if(session) loadQueue();
+  else renderLogin(false);
+}
+// onAuthStateChange fires an INITIAL_SESSION event on subscribe, which covers
+// both the returning-from-magic-link case and an existing session. We render
+// only from here so the queue never loads twice.
+let LAST_UID = undefined;
+db.auth.onAuthStateChange((_event, session)=>{
+  const uid = session ? session.user.id : null;
+  if(uid === LAST_UID) return; // ignore token refreshes that don't change who's signed in
+  LAST_UID = uid;
+  route(session);
+});
+</script>
+</body>
+</html>
