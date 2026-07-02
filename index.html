@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>East End — What's on</title>
+<style>
+  :root{
+    --bg:#f6f4ef; --card:#ffffff; --ink:#26241f; --muted:#8a857c;
+    --line:#e7e3da; --accent:#0f6e56; --accent-bg:#e1f5ee;
+    --free:#3b6d11; --free-bg:#eaf3de;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:460px;margin:0 auto;min-height:100vh;background:var(--bg);
+    padding:0 0 88px;position:relative}
+  header{padding:22px 20px 8px}
+  h1{margin:0;font-size:26px;font-weight:600;letter-spacing:-0.01em}
+  .sub{margin:3px 0 0;color:var(--muted);font-size:14px}
+  .filters{display:flex;flex-wrap:wrap;gap:7px;padding:14px 20px 6px;
+    position:sticky;top:0;background:var(--bg);z-index:5}
+  select.chip{appearance:none;font:inherit}
+  .chip{font-size:13px;padding:6px 12px;border-radius:18px;border:1px solid var(--line);
+    background:var(--card);color:var(--ink);cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--accent-bg);border-color:var(--accent-bg);color:var(--accent)}
+  .daygroup{padding:10px 20px 0}
+  .dayhdr{font-size:13px;font-weight:600;color:var(--muted);margin:14px 0 8px}
+  .card{display:flex;gap:14px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;padding:13px 15px;margin-bottom:10px}
+  .when{min-width:62px}
+  .time{font-size:15px;font-weight:600;margin:0}
+  .vill{font-size:11px;color:var(--muted);margin:2px 0 0}
+  .body{flex:1;min-width:0}
+  .venue{font-size:15px;font-weight:600;color:var(--accent);margin:0}
+  .title{font-size:14px;color:var(--ink);margin:2px 0 0}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .tag{font-size:11px;padding:2px 9px;border-radius:11px;background:#f0ede6;color:var(--muted)}
+  .tag.cat{background:var(--accent-bg);color:var(--accent)}
+  .tag.free{background:var(--free-bg);color:var(--free)}
+  .msg{padding:40px 20px;text-align:center;color:var(--muted);font-size:15px}
+  .tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;
+    max-width:460px;display:flex;background:var(--card);border-top:1px solid var(--line)}
+  .tab{flex:1;text-align:center;padding:10px 0;font-size:11px;color:var(--muted)}
+  .tab.on{color:var(--accent)}
+  .tab .ic{display:block;font-size:18px;line-height:1.4}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>East End</h1>
+    <p class="sub" id="sub">What's on</p>
+  </header>
+  <div class="filters" id="filters">
+    <select class="chip" id="villageSel"><option value="">All villages</option></select>
+    <button class="chip on" data-grp="part" data-val="">Any time</button>
+    <button class="chip" data-grp="part" data-val="daytime">Daytime</button>
+    <button class="chip" data-grp="part" data-val="evening">Evening</button>
+    <button class="chip on" data-grp="aud" data-val="">All</button>
+    <button class="chip" data-grp="aud" data-val="family_friendly">Family</button>
+    <button class="chip" data-grp="aud" data-val="adult">Adult</button>
+  </div>
+  <div id="feed"><div class="msg">Loading what's on…</div></div>
+  <div class="tabbar">
+    <div class="tab on"><span class="ic">◴</span>This week</div>
+    <div class="tab"><span class="ic">▦</span>Calendar</div>
+    <div class="tab"><span class="ic">◎</span>Map</div>
+    <div class="tab"><span class="ic">♡</span>Saved</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://gzhrxycyfekmrobrhoxt.supabase.co";
+const SUPABASE_KEY = "sb_publishable_hoqIkzE49xN73b4F6uxo4A_ZsCfVyRX";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const TZ = "America/New_York";
+const VILLAGE = {montauk:"Montauk",amagansett:"Amagansett",east_hampton:"East Hampton",
+  springs:"Springs",wainscott:"Wainscott",sag_harbor:"Sag Harbor",other:"East End"};
+const CATEGORY = {live_music:"Live music",food_drink:"Food & drink",arts_culture:"Arts & culture",
+  civic:"Civic",kids_family:"Kids & family",outdoors:"Outdoors",nightlife:"Nightlife",
+  market:"Market",sports_fishing:"Sports & fishing"};
+const COST = {free:"Free",no_cover:"No cover",ticketed:"Ticketed",paid:"$$"};
+
+let ALL = [];
+const filters = {village:"", part:"", aud:""};
+
+function etParts(d){
+  const p = new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",
+    day:"2-digit",weekday:"short",month:"short"}).formatToParts(d);
+  const get = t => p.find(x=>x.type===t)?.value;
+  return {key:`${get("year")}-${getNum(p,"month")}-${getNum(p,"day")}`, d};
+}
+function getNum(parts,t){ // robust 2-digit from en-CA numeric
+  return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,[t]:"2-digit"}).format();
+}
+function dayKey(date){
+  return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(date);
+}
+function dayLabel(date){
+  const today = dayKey(new Date());
+  const tom = dayKey(new Date(Date.now()+86400000));
+  const k = dayKey(date);
+  if(k===today) return "Today";
+  if(k===tom) return "Tomorrow";
+  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,weekday:"long",month:"short",day:"numeric"}).format(date);
+}
+function timeLabel(date){
+  return new Intl.DateTimeFormat("en-US",{timeZone:TZ,hour:"numeric",minute:"2-digit"}).format(date);
+}
+
+async function load(){
+  const {data,error} = await db.from("published_upcoming").select("*").order("starts_at").limit(300);
+  const feed = document.getElementById("feed");
+  if(error){ feed.innerHTML = `<div class="msg">Couldn't load events.<br>${error.message}</div>`; return; }
+  ALL = (data||[]).map(e=>({...e, _d:new Date(e.starts_at)}));
+  // populate village filter from data
+  const sel = document.getElementById("villageSel");
+  [...new Set(ALL.map(e=>e.village))].sort().forEach(v=>{
+    const o=document.createElement("option"); o.value=v; o.textContent=VILLAGE[v]||v; sel.appendChild(o);
+  });
+  render();
+}
+
+function render(){
+  const feed = document.getElementById("feed");
+  const now = new Date();
+  let rows = ALL.filter(e=>e._d>=now)
+    .filter(e=>!filters.village || e.village===filters.village)
+    .filter(e=>!filters.part || e.time_of_day===filters.part)
+    .filter(e=>!filters.aud || e.audience===filters.aud);
+
+  document.getElementById("sub").textContent =
+    rows.length ? `${rows.length} upcoming this season` : "What's on";
+
+  if(!rows.length){ feed.innerHTML = `<div class="msg">Nothing matches those filters yet.</div>`; return; }
+
+  const groups = {};
+  rows.forEach(e=>{ const k=dayKey(e._d); (groups[k] ||= {label:dayLabel(e._d),items:[]}).items.push(e); });
+
+  let html = "";
+  Object.keys(groups).sort().forEach(k=>{
+    const g = groups[k];
+    html += `<div class="daygroup"><div class="dayhdr">${g.label}</div>`;
+    g.items.forEach(e=>{
+      const free = (e.cost==="free"||e.cost==="no_cover");
+      html += `<div class="card">
+        <div class="when"><p class="time">${timeLabel(e._d)}</p>
+          <p class="vill">${VILLAGE[e.village]||e.village}</p></div>
+        <div class="body">
+          ${e.venue_name?`<p class="venue">${esc(e.venue_name)}</p>`:""}
+          <p class="title">${esc(e.title)}</p>
+          <div class="tags">
+            <span class="tag cat">${CATEGORY[e.category]||e.category}</span>
+            <span class="tag ${free?"free":""}">${COST[e.cost]||e.cost}</span>
+            ${e.audience==="family_friendly"?`<span class="tag">Family</span>`:""}
+          </div>
+        </div></div>`;
+    });
+    html += `</div>`;
+  });
+  feed.innerHTML = html;
+}
+
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+document.getElementById("filters").addEventListener("click",ev=>{
+  const b = ev.target.closest("button.chip"); if(!b) return;
+  const grp = b.dataset.grp;
+  filters[grp] = b.dataset.val;
+  document.querySelectorAll(`button.chip[data-grp="${grp}"]`).forEach(x=>x.classList.toggle("on",x===b));
+  render();
+});
+document.getElementById("villageSel").addEventListener("change",e=>{
+  filters.village = e.target.value; render();
+});
+
+load();
+</script>
+</body>
+</html>
