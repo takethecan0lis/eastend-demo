@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Montauk - The App</title>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     /* brand */
@@ -35,9 +35,13 @@
     -webkit-font-smoothing:antialiased}
   .wrap{max-width:460px;margin:0 auto;min-height:100vh;background:var(--bg);
     padding:0 0 88px;position:relative}
-  header{padding:20px 20px 0}
-  .wordmark{display:block;width:200px;height:auto}
-  .tagline{margin:12px 0 16px;font-family:"Oswald",sans-serif;font-weight:500;
+  header{padding:22px 20px 0;text-align:center}
+  .wordmark{line-height:1}
+  .mark-main{font-family:"Anton",sans-serif;font-size:52px;line-height:0.9;
+    letter-spacing:0.01em;text-transform:uppercase;color:var(--brand-red)}
+  .mark-sub{font-family:"Anton",sans-serif;font-size:19px;line-height:1;margin-top:5px;
+    letter-spacing:0.3em;text-indent:0.3em;text-transform:uppercase;color:var(--brand-red)}
+  .tagline{margin:14px 0 16px;font-family:"Oswald",sans-serif;font-weight:500;
     font-size:15px;letter-spacing:0.04em;text-transform:uppercase;color:var(--red-ink)}
   .filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px 20px;
     position:sticky;top:0;background:var(--bg);z-index:5;
@@ -83,7 +87,10 @@
 <body>
 <div class="wrap">
   <header>
-    <img class="wordmark" src="montauk-the-app.png" alt="Montauk - The App" width="200">
+    <div class="wordmark">
+      <div class="mark-main">Montauk</div>
+      <div class="mark-sub">The App</div>
+    </div>
     <p class="tagline">All of the East End events in one place!</p>
   </header>
   <div class="filters" id="filters">
