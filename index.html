@@ -85,6 +85,29 @@ const CATEGORY = {live_music:"Live music",food_drink:"Food & drink",arts_culture
   market:"Market",sports_fishing:"Sports & fishing"};
 const COST = {free:"Free",no_cover:"No cover",ticketed:"Ticketed",paid:"$$"};
 
+// Some venues (e.g. Guild Hall) publish titles in ALL CAPS. Soften those for
+// display only; the database keeps the source text faithfully.
+const SMALL_WORDS = new Set(["a","an","and","the","of","or","for","to","in","on","at","with","by","vs","from","as","w/"]);
+const ACRONYMS = new Set(["NY","NYC","DJ","UN","USA","UK","US","EDM","LI","VIP","BBQ","AM","PM","RSVP","MTK"]);
+function smartTitle(str){
+  str = str||"";
+  // Only reformat titles that are essentially all-caps AND multi-word.
+  // Single-word all-caps (BAILEN, JOHNNYSWIM) are likely stylized names — leave them.
+  if(!/[A-Z]/.test(str) || /[a-z]/.test(str) || !/\s/.test(str)) return str;
+  let afterBreak = true; // start of string, or just after a colon
+  return str.toLowerCase().split(/(\s+|\/|-|:)/).map(tok=>{
+    if(tok==="" || /^\s+$/.test(tok) || tok==="/" || tok==="-") return tok; // separators
+    if(tok===":"){ afterBreak = true; return tok; }
+    const up = tok.toUpperCase();
+    let out;
+    if(ACRONYMS.has(up)) out = up;
+    else if(!afterBreak && SMALL_WORDS.has(tok)) out = tok;
+    else out = tok.charAt(0).toUpperCase()+tok.slice(1);
+    afterBreak = false;
+    return out;
+  }).join("");
+}
+
 let ALL = [];
 const filters = {village:"", part:"", aud:""};
 
@@ -152,7 +175,7 @@ function render(){
           <p class="vill">${VILLAGE[e.village]||e.village}</p></div>
         <div class="body">
           ${e.venue_name?`<p class="venue">${esc(e.venue_name)}</p>`:""}
-          <p class="title">${esc(e.title)}</p>
+          <p class="title">${esc(smartTitle(e.title))}</p>
           <div class="tags">
             <span class="tag cat">${CATEGORY[e.category]||e.category}</span>
             <span class="tag ${free?"free":""}">${COST[e.cost]||e.cost}</span>
