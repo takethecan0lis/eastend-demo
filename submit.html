@@ -143,7 +143,7 @@ const CATEGORY = {live_music:"Live music",food_drink:"Food & drink",arts_culture
   civic:"Civic",kids_family:"Kids & family",outdoors:"Outdoors",nightlife:"Nightlife",
   market:"Market",sports_fishing:"Sports & fishing"};
 const COST = {free:"Free",no_cover:"No cover",ticketed:"Ticketed",paid:"Paid"};
-const AUDIENCE = {all_ages:"All ages",family_friendly:"Family friendly",adult:"Adult"};
+const AUDIENCE = {family_friendly:"Kids & Family",adult:"Adult"};
 const VILLAGE = {montauk:"Montauk",amagansett:"Amagansett",east_hampton:"East Hampton",
   springs:"Springs",wainscott:"Wainscott",sag_harbor:"Sag Harbor",other:"East End"};
 
@@ -230,7 +230,7 @@ function succeed(){
   document.getElementById("form").reset();
   fillSelect(document.getElementById("category"), CATEGORY, "", "Choose a category");
   fillSelect(document.getElementById("cost"), COST, "", "Choose a cost");
-  fillSelect(document.getElementById("audience"), AUDIENCE, "all_ages");
+  fillSelect(document.getElementById("audience"), AUDIENCE, "family_friendly");
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -286,7 +286,7 @@ document.getElementById("form").addEventListener("submit", async (ev)=>{
 
 fillSelect(document.getElementById("category"), CATEGORY, "", "Choose a category");
 fillSelect(document.getElementById("cost"), COST, "", "Choose a cost");
-fillSelect(document.getElementById("audience"), AUDIENCE, "all_ages");
+fillSelect(document.getElementById("audience"), AUDIENCE, "family_friendly");
 loadVenues();
 </script>
 </body>

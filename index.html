@@ -111,7 +111,7 @@
     <button class="chip" data-grp="part" data-val="daytime">Daytime</button>
     <button class="chip" data-grp="part" data-val="evening">Evening</button>
     <button class="chip on" data-grp="aud" data-val="">All</button>
-    <button class="chip" data-grp="aud" data-val="family_friendly">Family</button>
+    <button class="chip" data-grp="aud" data-val="family_friendly">Kids &amp; Family</button>
     <button class="chip" data-grp="aud" data-val="adult">Adult</button>
   </div>
   <div id="feed"><div class="msg">Loading what's on…</div></div>
@@ -248,7 +248,7 @@ function render(){
           <div class="tags">
             <span class="tag">${CATEGORY[e.category]||e.category}</span>
             <span class="tag ${costClassFor(e.cost)}">${COST[e.cost]||e.cost}</span>
-            ${e.audience==="family_friendly"?`<span class="tag">Family</span>`:""}
+            ${e.audience==="adult"?`<span class="tag">Adult</span>`:""}
           </div>
         </div></div>`;
     });
