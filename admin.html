@@ -384,7 +384,7 @@ function renderEventList(rows, mode, emptyMsg){
         <div class="tags">
           <span class="tag">${CATEGORY[e.category]||esc(e.category)}</span>
           <span class="tag ${costClass(e.cost)}">${COST[e.cost]||esc(e.cost)}</span>
-          <span class="tag">${AUDIENCE[e.audience]||esc(e.audience)}</span>
+          ${e.audience==="adult"?`<span class="tag">Adult</span>`:""}
           <span class="tag src">${esc(e.source)}</span>
         </div>
         ${e.description ? `<p class="desc">${esc(e.description)}</p>` : ""}
@@ -505,7 +505,7 @@ async function saveEventEdit(card, id, ed, view){
   view.querySelector(".tags").innerHTML =
     `<span class="tag">${CATEGORY[data.category]||esc(data.category)}</span>
      <span class="tag ${costClass(data.cost)}">${COST[data.cost]||esc(data.cost)}</span>
-     <span class="tag">${AUDIENCE[data.audience]||esc(data.audience)}</span>
+     ${data.audience==="adult"?`<span class="tag">Adult</span>`:""}
      <span class="tag src">${esc(data.source)}</span>`;
   let descEl = view.querySelector(".desc");
   if(data.description){
@@ -563,7 +563,7 @@ function renderSeries(rows){
         <div class="tags">
           <span class="tag">${CATEGORY[r.category]||esc(r.category||"")}</span>
           <span class="tag ${costClass(r.cost)}">${COST[r.cost]||esc(r.cost||"")}</span>
-          <span class="tag">${AUDIENCE[r.audience]||esc(r.audience||"")}</span>
+          ${r.audience==="adult"?`<span class="tag">Adult</span>`:""}
           <span class="tag src">weekly</span>
         </div>
         <div class="actions">
