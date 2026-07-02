@@ -215,8 +215,9 @@ function clearFilters(){
 
 function render(){
   const feed = document.getElementById("feed");
-  const now = new Date();
-  let rows = ALL.filter(e=>e._d>=now)
+  // Show the whole current day (even events already started/ended), roll over at ET midnight.
+  const todayKey = dayKey(new Date());
+  let rows = ALL.filter(e=>dayKey(e._d)>=todayKey)
     .filter(e=>!filters.village || e.village===filters.village)
     .filter(e=>!filters.part || e.time_of_day===filters.part)
     .filter(e=>!filters.aud || e.audience===filters.aud);
